@@ -7,12 +7,12 @@
 
 #Configure as variaveis abaixo ou preencha em tempo de execucao
 servidor="smtp.gmail.com"
-mailorigem="zabbix@adtsys.com.br"
-maildestino="daniel.ferreira@adtsys.com.br"
+mailorigem=""
+maildestino=""
 
 #amazon
-usuario="zabbix@adtsys.com.br"
-senha="123mudar"
+usuario=""
+senha=""
 opcao=""
 usuario64=""
 senha64=""
