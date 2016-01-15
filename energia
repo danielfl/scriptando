@@ -1,0 +1,14 @@
+#!/bin/bash
+
+pico2wave -l=en-US -w=/tmp/test.wav "Please. Plug the charger. " 
+while [ 1 = 1 ]
+do
+	while [ `cat /sys/class/power_supply/AC/online` -eq 0 ]
+	do 
+		echo ERRO
+		aplay /usr/share/webkitgtk-3.0/resources/audio/Composite.wav
+		aplay /tmp/test.wav
+		sleep 1
+	done  
+done
+

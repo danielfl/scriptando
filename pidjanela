@@ -1,0 +1,1 @@
+xprop | awk '($1=="_NET_WM_PID(CARDINAL)") {print $3}' | xargs ps h -o pid,cmd

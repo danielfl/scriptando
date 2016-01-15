@@ -1,0 +1,94 @@
+#!/bin/bash 
+
+#Created by: Daniel Ferreira de Lima
+#Last Release: 1.1 Ter Jan 12 11:56:01 BRST 2016
+#Changelog: 1.0 Dom Jan 10 18:13:57 BRST 2016
+#Email: daniel.ferreira@adtsys.com.br 
+#Description: Cria, monta e desmonta um crytofs facilmente 
+#             sem usar comandos chatos
+#VIM<3
+
+
+USUARIO=$USER
+FSFILE=$2
+MPT=$3
+MAP=volume1
+
+erro() {
+	echo -e "ERRO: $1\n"
+	exit 1
+}
+
+uso(){
+	echo "Uso: $0 [-c,-m,-u] criptofs ponto_montagem"
+	echo -e "-c cria\n-m monta\n-u desmonta "
+} 
+
+cryptsetup -? >/dev/null 2>&1 || erro "Nao achei o cryptsetup instalado"
+
+#conf
+[[ $1 = "" ]] && uso && erro Sintaxe
+[[ $2 = "" ]] && uso && erro Sintaxe
+[[ $3 = "" ]] && MPT=`pwd`/seguro && echo Ponto de montagem nao especificado assumindo $MPT
+
+monta(){ 
+	desmonta 
+	echo Montando..
+	df 2>/dev/null| grep $MAP && erro "Maper $MAP ja esta montado" 
+	mkdir -p $MPT 2>/dev/null
+
+	sudo cryptsetup luksOpen $FSFILE $MAP || erro "Abrir luks"
+	[[ -e /dev/mapper/$MAP ]] || erro "Arquivo /dev/mapper/$MAP não existe"
+	echo
+	
+	mount /dev/mapper/$MAP $MPT 2>/dev/null && exit || echo -e  "Inclua no /etc/fstab\n/dev/mapper/$MAP $MPT auto defaults,user 0 1" 
+
+	sudo mount -o rw /dev/mapper/$MAP $MPT 
+}
+desmonta(){ 
+	echo Desmontando..
+	[[ -e /dev/mapper/$MAP ]] && sudo umount $MPT  2>/dev/null
+	sudo cryptsetup luksClose $MAP 
+}
+cria()
+{ 
+	echo Criando..
+	[[ -e $FSFILE ]] && erro "$FSFILE ja existe doidao, quer destruir tudo?" 
+	df 2>/dev/null| grep $MAP && erro "Maper $MAP ja esta montado doidao, quer destruir tudo?" 
+
+	echo "Quantos MB no criptofs?"
+	read MB
+
+	dd if=/dev/zero of=$FSFILE bs=1M count=$MB
+	[[ -e $FSFILE ]] || erro "Criar arquivo" 
+
+	echo Guarde a senha que vai digitar em local seguro...
+	cryptsetup -y luksFormat $FSFILE || erro "Criar luksFormat"
+	file $FSFILE 
+
+	sudo cryptsetup luksOpen $FSFILE $MAP || erro "Abrir luks"
+
+	[[ -e /dev/mapper/$MAP ]] || erro "$MAP nao existe, erro ao criar?" 
+	sudo mkfs.ext4 -j /dev/mapper/$MAP || erro "Criar ext4"
+
+	mkdir -p $MPT
+
+	monta
+}
+
+sudo echo Permissao de root ok..
+
+
+if [[ $1 = "-m" ]] 
+then 
+	monta
+elif [[ $1 = "-u" ]] 
+then
+        desmonta
+elif [[ $1 = "-c" ]] 
+then
+       cria
+else 
+	uso
+fi
+

@@ -1,0 +1,195 @@
+#!/bin/bash 
+
+#Created by: Daniel Ferreira de Lima
+#Last Release: 1.0 Qua Jan  6 12:32:50 BRST 2016
+#Email: daniel.ferreira@adtsys.com.br 
+#VIM
+
+#Configure as variaveis abaixo ou preencha em tempo de execucao
+servidor="smtp.gmail.com"
+mailorigem="zabbix@adtsys.com.br"
+maildestino="daniel.ferreira@adtsys.com.br"
+
+#amazon
+usuario="zabbix@adtsys.com.br"
+senha="123mudar"
+opcao=""
+usuario64=""
+senha64=""
+
+menu() {
+	echo "-------------------------------------------------------------"
+	echo Script de teste de credenciais SMTP em AWS e Local
+	echo "-------------------------------------------------------------"
+
+	echo "Voce esta em ambiente de producao ou homologacao?"
+
+	echo 0 Homologacao ou producao
+	echo 1 Maquina local
+
+	echo -n "Opcao: "
+	read opcao
+
+
+	#variavel global determina comportamento
+	case "$opcao" in
+
+	0)  cred_aws
+	    ;;
+
+	1)  cred_aws
+	    ;;
+	*) echo "Opcao invalida! Saindo.."
+		exit 1
+	   ;;
+	esac
+}
+
+
+cred_aws() {
+
+	if [[ -z "$servidor" ]]
+	then 
+		echo Digite o nome o endereco do servidor da Amazon da sua regiao.
+		echo -n "Ex: email-smtp.us-east-1.amazonaws.com: " 
+		read servidor
+	fi 
+
+	echo Enviando email... 
+
+	if [[ -z "$mailorigem" ]] 
+	then
+		echo -n "Digite o email de origem: "
+		read mailorigem 
+	fi
+
+	if [[ -z "$maildestino" ]]
+	then
+		echo -n "Digite o email de destino: "
+		read maildestino
+	fi
+
+	echo Entrada de credenciais...
+	echo
+
+	if [[ -z "$usuario" ]]
+	then
+		echo -n "Usuario ex (AKIAI3KOR2IJSKllrOEQ): " 
+		read usuario
+	fi 
+
+	if [[ -z "$senha" ]]
+	then
+		echo -n  "Senha ex AnicHiF8FgKXdDtPeW1bLbzlB7pJMXwYDisufhuhfuf: "
+		read senha
+	fi
+
+	usuario64=`echo -n $usuario|base64`
+	senha64=`echo -n $senha|base64`
+
+	if [ $opcao -eq 0 ]
+	then 
+		teste_aws 
+	else
+		teste_local 
+	fi
+}
+teste_aws() {
+
+echo Enviando email via AWS ...
+echo "obs: Esse script usa expect, favor instalar caso não estiver disponível"
+echo -n Continuar..
+read ok 
+
+cat <<EOF >/tmp/smtpscript.exp
+package require Expect 
+
+spawn openssl s_client -crlf -quiet -connect $servidor:465
+
+expect "220*"
+send "EHLO $mailorigem\r"
+expect "250*"
+send "AUTH LOGIN\r"
+expect "334*"
+send "$usuario64\r"
+expect "334*"
+send "$senha64\r"
+expect "235*"
+send "MAIL FROM: $mailorigem\\r"
+expect "250*"
+send "RCPT TO: $maildestino\r"
+expect "250*"
+send "data\r"
+expect "354*"
+send "Subject:$RANDOM Teste envio de email AWS SES SMTP+SSL\\r"
+send "\r"
+send "Teste de envio de email via AWS .$RANDOM  \r"
+send "Testando funcionamento\r"
+send "\r"
+send ".\r"
+expect "250*"
+send "quit\r"
+expect "221*"
+
+EOF
+
+	expect /tmp/smtpscript.exp
+	rm /tmp/smtpscript.exp
+
+	exit 0
+} 
+
+teste_local() {
+
+	echo "Enviando email de teste via PHP PEAR NetSMTP .."
+	echo
+	echo "obs: Se ainda não possuir. Voce vai precisar instalar o PHP PEAR e o PEAR Net/SMTP na sua máquina local"
+	echo -n Continuar..
+	read ok
+
+	cat <<EOF >/tmp/smtpscript.php
+<?php
+
+require 'Net/SMTP.php';
+
+\$host = 'ssl://$servidor';
+\$from = '$mailorigem';
+\$rcpt =  array('$maildestino');
+\$subj = "Subject: $RANDOM Teste envio AWS SMTP+SSL SES\n";
+\$body = "Teste realizado\nCom sucesso\nAPI PHP Net/SMTP\n$RANDOM ";
+\$user = '$usuario';
+\$pass = '$senha';
+
+if (! (\$smtp = new Net_SMTP(\$host, 465))) {
+    die("Unable to instantiate Net_SMTP object\n");
+}
+if (PEAR::isError(\$e = \$smtp->connect())) {
+    die(\$e->getMessage() . "\n");
+}
+\$smtp->auth(\$user,\$pass);
+if (PEAR::isError(\$smtp->mailFrom(\$from))) {
+    die("Unable to set sender to <\$from>\n");
+}
+foreach (\$rcpt as \$to) {
+    if (PEAR::isError(\$res = \$smtp->rcptTo(\$to))) {
+        die("Unable to add recipient <\$to>: " . \$res->getMessage() . "\n");
+    }
+}
+if (PEAR::isError(\$smtp->data(\$subj . "\r\n" . \$body))) {
+    die("Unable to send data\n");
+}
+\$smtp->disconnect();
+
+?>
+EOF
+
+	php /tmp/smtpscript.php
+	rm /tmp/smtpscript.php
+
+	exit 0
+} 
+
+#menu do script 
+menu
+#FIM
+

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+search=cli
+filter=minimized
+
+findpid=$( pgrep $search |tail -1 )
+
+read a
+# pick only one pid
+findpid=$(echo $findpid | cut -f1 -d' ')
+echo "Search for window with pid=$findpid"
+
+known_windows=$(xwininfo -root -children|sed -e 's/^ *//'|grep -E "^0x"|awk '{ print $1 }')
+
+for id in ${known_windows}
+do
+    xp=$(xprop -id $id _NET_WM_PID)
+    if test $? -eq 0; then
+        pid=$(xprop -id $id _NET_WM_PID|cut -d'=' -f2|tr -d ' ')
+
+        if test "x${pid}" = x${findpid}
+        then
+            echo "Windows Id: $id"
+            xprop -id $id 
+            xprop -id $id -f _NET_WM_STATE 32a -set _NET_WM_STATE "_NET_WM_ACTION_MAXIMIZE"
+        fi
+    fi
+done

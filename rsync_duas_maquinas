@@ -1,0 +1,62 @@
+#!/bin/bash 
+
+#Created by: Daniel Ferreira de Lima
+#Last Release: 0.2 Seg Jan 11 18:08:14 BRST 2016
+#Email: daniel.ferreira@adtsys.com.br 
+#Description: Script para sincronizacao de diretorios 
+#	      de forma incremental, sem exclusao e usando 
+#	      chaves ssh pre-criadas
+#VIM<3
+
+
+INICIO=`date +%Y-%m-%d-%H:%M:%S`
+LOG=`date +%Y-%m-%d-%H`XX_envia.log
+ORIGEM=musicas_arquivos/
+DESTINO=usuario@servidor:/musicas_arquivos
+CHAVE=file.pem
+
+
+echo " " >> $LOG
+echo " " >> $LOG
+echo "|-------------------------------------------------------------------------"  >> $LOG
+echo "Sincronizacao iniciada em $INICIO" >> $LOG
+
+
+#Envio de arquivos prodweb 2
+rsync -avu  $ORIGEM -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $CHAVE" $DESTINO >> $LOG
+
+
+FINAL=`date +%Y-%m-%d-%H:%M:%S`
+
+echo "Sincronizacao Finalizada em $FINAL" >> $LOG
+echo "|-------------------------------------------------------------------------"  >> $LOG
+echo " " >> $LOG
+echo " " >> $LOG
+cat $LOG
+
+
+
+# Segunda parte do script copia dos arquivos enviados mais arquivos remotos
+##################################################
+
+
+LOG2=/var/log/`date +%Y-%m-%d-%H`_recebe.log 
+INICIO=`date +%Y-%m-%d-%H:%M:%S`
+echo " " >> $LOG2
+echo " " >> $LOG2
+echo "|-------------------------------------------------------------------------"  >> $LOG2
+echo "Sincronizacao iniciada em $INICIO" >> $LOG2
+
+
+#Retorno de arquivos para prodweb1  
+rsync -avu $DESTINO/*  -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $CHAVE" $ORIGEM >> $LOG2
+
+
+FINAL=`date +%Y-%m-%d-%H:%M:%S`
+
+echo "Sincronizacao Finalizada em $FINAL" >> $LOG2
+echo "|-------------------------------------------------------------------------"  >> $LOG2
+echo " " >> $LOG2
+echo " " >> $LOG2
+cat $LOG2
+
